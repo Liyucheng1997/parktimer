@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="description" content="停车拍照计时App - 记录停车位置，智能提醒整点时间">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="停车计时">
+
+  <title>停车计时 - ParkTimer</title>
+
+  <!-- 样式 -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- PWA支持 -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- 头部 -->
+    <header class="app-header">
+      <div class="app-logo">🅿️</div>
+      <h1 class="app-title">停车计时</h1>
+      <p class="app-subtitle">智能提醒，避免超时</p>
+    </header>
+
+    <!-- 通知权限提示 -->
+    <div class="notification-prompt" id="notificationPrompt">
+      <span class="notification-prompt-icon">🔔</span>
+      <div class="notification-prompt-content">
+        <div class="notification-prompt-title">开启通知</div>
+        <div class="notification-prompt-desc">接收整点提醒，避免超时</div>
+      </div>
+      <button class="btn btn-secondary notification-prompt-btn" id="enableNotificationBtn">开启</button>
+    </div>
+
+    <!-- 空状态 - 未停车 -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-state-icon">🚗</div>
+      <h2 class="empty-state-title">准备好了吗？</h2>
+      <p class="empty-state-desc">点击下方按钮开始停车，拍摄停车位照片并开始计时</p>
+      <button class="btn btn-primary btn-lg" id="startBtn">
+        <span class="btn-icon">📷</span>
+        开始停车
+      </button>
+    </div>
+
+    <!-- 停车中状态 -->
+    <div class="hidden" id="parkingState">
+      <!-- 计时器卡片 -->
+      <div class="card">
+        <div class="card-title">
+          <span class="status-indicator">
+            <span class="status-dot active"></span>
+            <span>停车中</span>
+          </span>
+          <span style="margin-left: auto; font-size: 0.85rem; color: var(--text-secondary);"
+            id="startTimeDisplay"></span>
+        </div>
+
+        <div class="timer-display">
+          <div class="timer-value" id="timerValue">00:00:00</div>
+          <div class="timer-label">已停车时长</div>
+        </div>
+
+        <!-- 整点提醒 -->
+        <div class="next-hour-alert" id="nextHourAlert">
+          <span class="alert-icon">⏰</span>
+          <div class="alert-content">
+            <div class="alert-title">下一整点</div>
+            <div class="alert-time" id="nextHourTime">第 1 小时还剩 60:00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 照片卡片 -->
+      <div class="card">
+        <div class="card-title">
+          <span>📍</span>
+          <span>停车位置</span>
+        </div>
+
+        <div class="photo-preview" id="photoPreview">
+          <div class="photo-placeholder" id="photoPlaceholder">
+            <span class="photo-placeholder-icon">📷</span>
+            <span>暂无照片</span>
+          </div>
+          <img class="hidden" id="photoImage" alt="停车位照片">
+        </div>
+
+        <div class="photo-info">
+          <span>拍摄时间</span>
+          <span id="photoTime">-</span>
+        </div>
+      </div>
+
+      <!-- 结束按钮 -->
+      <button class="btn btn-danger btn-lg" id="endBtn">
+        <span class="btn-icon">🏁</span>
+        结束停车
+      </button>
+    </div>
+  </div>
+
+  <!-- 相机界面 -->
+  <div class="camera-modal" id="cameraModal">
+    <div class="camera-preview">
+      <video id="cameraVideo" autoplay playsinline muted></video>
+    </div>
+    <div class="camera-controls">
+      <button class="camera-close" id="closeCameraBtn">✕</button>
+      <button class="camera-btn" id="captureBtn" title="拍照"></button>
+      <div style="width: 48px;"></div>
+    </div>
+  </div>
+
+  <!-- 结束停车摘要 -->
+  <div class="summary-overlay" id="summaryOverlay">
+    <div class="summary-card">
+      <div class="summary-icon">🎉</div>
+      <h2 class="summary-title">停车结束</h2>
+
+      <div class="summary-stats">
+        <div class="summary-stat">
+          <div class="summary-stat-value" id="summaryDuration">00:00:00</div>
+          <div class="summary-stat-label">停车时长</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-value"><span id="summaryHours">0</span> 小时</div>
+          <div class="summary-stat-label">计费时段</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="confirmEndBtn">
+        确认结束
+      </button>
+    </div>
+  </div>
+
+  <!-- 隐藏类 -->
+  <style>
+    .hidden {
+      display: none !important;
+    }
+  </style>
+
+  <!-- 脚本 -->
+  <script src="camera.js"></script>
+  <script src="timer.js"></script>
+  <script src="notification.js"></script>
+  <script src="app.js"></script>
+
+  <!-- 注册Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('✅ Service Worker 注册成功'))
+          .catch(err => console.log('❌ Service Worker 注册失败:', err));
+      });
+    }
+  </script>
+</body>
+
+</html>
